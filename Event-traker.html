@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab Time Tracker & Work Session Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #170000; /* Dark background color */
+            color: #160101;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            max-width: 1200px;
+            background-color: #282828; /* Container background color */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .timer, .dashboard {
+            flex: 1;
+            margin: 10px;
+        }
+
+        .timer {
+            text-align: center;
+            background-color: #f4f4f9; /* Light background for timer */
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .flip-clock {
+            font-size: 48px;
+            margin-bottom: 20px;
+            transition: transform 0.5s;
+        }
+
+        .dashboard {
+            background-color: #2e2e2e; /* Dashboard background color */
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard h2 {
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        canvas {
+            margin-top: 20px;
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #startButton {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        #stopButton {
+            background-color: #f44336;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #log {
+            margin-top: 20px;
+        }
+
+        #currentTabTime {
+            color: white; /* Color for current tab time */
+            margin-top: 10px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <h1>Tab Time Tracker & Work Session Timer</h1>
+    <div class="container">
+        <div class="timer">
+            <h2>Work Session Timer</h2>
+            <div id="timer" class="flip-clock">25:00</div>
+            <button id="startButton">Start</button>
+            <button id="stopButton" disabled>Stop</button>
+            <p id="status">Work Session</p>
+        </div>
+
+        <div class="dashboard">
+            <h2>Weekly Dashboard</h2>
+            <p>Total Work Time: <span id="totalWorkTime">0:00</span></p>
+            <p>Total Break Time: <span id="totalBreakTime">0:00</span></p>
+            <div id="log"></div>
+            <div id="currentTabTime">Time spent on this tab: 0 seconds</div>
+            <canvas id="productivityChart"></canvas>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Timer Logic
+        let workTime = 25 * 60; // 25 minutes in seconds
+        let breakTime = 5 * 60;  // 5 minutes in seconds
+        let currentTime = workTime;
+        let timerInterval;
+        let totalWorkSeconds = 0;
+        let totalBreakSeconds = 0;
+
+        const timerDisplay = document.getElementById("timer");
+        const startButton = document.getElementById("startButton");
+        const stopButton = document.getElementById("stopButton");
+        const totalWorkDisplay = document.getElementById("totalWorkTime");
+        const totalBreakDisplay = document.getElementById("totalBreakTime");
+        const currentTabTimeDisplay = document.getElementById("currentTabTime");
+        const productivityChartCtx = document.getElementById("productivityChart").getContext("2d");
+
+        const productivityChart = new Chart(productivityChartCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Work Time', 'Break Time'],
+                datasets: [{
+                    data: [0, 0],
+                    backgroundColor: ['#4CAF50', '#f44336']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        function updateTimer() {
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = currentTime % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerDisplay.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                timerDisplay.style.transform = 'scale(1)';
+            }, 300);
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (currentTime > 0) {
+                    currentTime--;
+                    updateTimer();
+                } else {
+                    clearInterval(timerInterval);
+                    if (currentTime === 0) {
+                        totalWorkSeconds += workTime;
+                        currentTime = breakTime;
+                        document.getElementById("status").textContent = "Break Time";
+                    } else {
+                        totalBreakSeconds += breakTime;
+                        currentTime = workTime;
+                        document.getElementById("status").textContent = "Work Session";
+                    }
+                    updateTimer();
+                    totalWorkDisplay.textContent = formatTime(totalWorkSeconds);
+                    totalBreakDisplay.textContent = formatTime(totalBreakSeconds);
+                    updateChart();
+                    startTimer();
+                }
+            }, 1000);
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateChart() {
+            productivityChart.data.datasets[0].data[0] = totalWorkSeconds;
+            productivityChart.data.datasets[0].data[1] = totalBreakSeconds;
+            productivityChart.update();
+        }
+
+        startButton.addEventListener("click", startTimer);
+        stopButton.addEventListener("click", stopTimer);
+        updateTimer();
+
+        // Time Tracking Logic
+        let startTime = null;
+        const timeSpent = {};
+        const currentURL = window.location.href;
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        let pieChart = null;
+        let currentTabSeconds = 0;
+
+        function updateCharts() {
+            const titles = Object.keys(timeSpent);
+            const times = Object.values(timeSpent);
+
+            if (pieChart) pieChart.destroy();
+
+            pieChart = new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: titles,
+                    datasets: [{
+                        label: 'Time Spent (seconds)',
+                        data: times,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+                    }]
+                }
+            });
+        }
+
+        function logTime(url) {
+            const currentTime = new Date();
+            if (startTime) {
+                const timeDiff = (currentTime - startTime) / 1000; // time in seconds
+                timeSpent[url] = (timeSpent[url] || 0) + timeDiff;
+                currentTabSeconds += timeDiff; // Update current tab time
+                currentTabTimeDisplay.textContent = `Time spent on this tab: ${Math.floor(currentTabSeconds)} seconds`;
+                startTime = currentTime;
+            } else {
+                startTime = currentTime;
+            }
+        }
+
+        function updateLog() {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = '<h2>Time Spent on Websites:</h2>';
+            for (const [url, time] of Object.entries(timeSpent)) {
+                const siteName = new URL(url).hostname.replace('www.', '');
+                logDiv.innerHTML += `<p>${siteName}: ${time.toFixed(2)} seconds</p>`;
+            }
+            updateCharts();
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            const newURL = window.location.href;
+            if (document.visibilityState === 'hidden') {
+                logTime(newURL);
+                updateLog();
+            } else if (document.visibilityState === 'visible') {
+                logTime(newURL);
+            }
+        });
+
+        logTime(currentURL);
+    </script>
+</body>
+</html>
